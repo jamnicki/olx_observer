@@ -87,7 +87,16 @@ def connect_SMTP(host, port):
     return server
 
 
-def send_offers(smtp_server, sender, offers):
+def login_SMTP(smtp_server, email, password):
+    try:
+        smtp_server.login(email, password)
+    except smtplib.SMTPAuthenticationError:
+        print(f'Unable to sign in as {email}')
+
+
+def send_offers(host, port, sender, offers, email, password):
+    smtp_server = connect_SMTP(host, port)
+    login_SMTP(smtp_server, email, password)
     for receiver in RECEIVERS:
         message = f"From: {sender}\nTo: {receiver}\nSubject: New offers\n"
         for offer in offers:
@@ -95,9 +104,12 @@ def send_offers(smtp_server, sender, offers):
 
         try:
             smtp_server.sendmail(sender, receiver, message.encode('utf-8'))
-            print(f'Email with {len(offers)} new offers to {receiver} has been sent!')  # noqa: E501
         except Exception as e:
             print(f'Unable to send email to {receiver}', e)
+        else:
+            print(f'Email with {len(offers)} new offers to {receiver} has been sent!')  # noqa: E501
+        finally:
+            smtp_server.close()
 
 
 def main():
@@ -119,15 +131,12 @@ def main():
     SENDER_PASSWORD = getpass('Enter password\n>>')
 
     try:
-        smtp_server.login(SENDER, SENDER_PASSWORD)
-    except smtplib.SMTPAuthenticationError:
-        print("Unable to sign in")
+        login_SMTP(smtp_server, SENDER, SENDER_PASSWORD)
     except Exception as e:
         print(e)
+        return None
     else:
         print(f'\nLogged as {SENDER}\n')
-    finally:
-        del SENDER_PASSWORD
 
     while 1:
         try:
@@ -143,12 +152,16 @@ def main():
                     )
 
             if new_offers:
-                send_offers(smtp_server, SENDER, new_offers)
+                send_offers(
+                    SMTP_HOST, SMTP_PORT, SENDER, new_offers, SENDER,
+                    SENDER_PASSWORD
+                )
             else:
                 print(f'No new offers found... ({datetime.now()})')
 
             time.sleep(random.randint(840, 960))  # sleep for 15min +-1min
         except KeyboardInterrupt:
+            smtp_server.close()
             break
         except Exception as e:
             print(e)
