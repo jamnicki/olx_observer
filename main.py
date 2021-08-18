@@ -8,9 +8,10 @@ from models import Offer
 from datetime import datetime
 from urllib.parse import urljoin
 from bs4 import BeautifulSoup
+from getpass import getpass
 from settings import (
     BASE_URL, OFFERS_URL, LOCATION_TAG_CLASS, PRICE_TAG_CLASS, SMTP_HOST,
-    DETAILS_TAG_CLASS, SMTP_PORT, SENDER, SENDER_PASSWORD, RECEIVERS
+    DETAILS_TAG_CLASS, SMTP_PORT, RECEIVERS
 )
 
 
@@ -82,24 +83,18 @@ def offer_exists(db_conn, offer):
 def connect_SMTP(host, port):
     server = smtplib.SMTP(host, port)
     server.starttls()
-    try:
-        server.login(SENDER, SENDER_PASSWORD)
-    except smtplib.SMTPAuthenticationError:
-        print("Unable to sign in")
-    except Exception as e:
-        print(e)
 
     return server
 
 
-def send_offers(smtp_server, offers):
+def send_offers(smtp_server, sender, offers):
     for receiver in RECEIVERS:
-        message = f"From: {SENDER}\nTo: {receiver}\nSubject: New offers\n"
+        message = f"From: {sender}\nTo: {receiver}\nSubject: New offers\n"
         for offer in offers:
             message += f'\n{str(offer)}\n{"="*40}'
 
         try:
-            smtp_server.sendmail(SENDER, receiver, message.encode('utf-8'))
+            smtp_server.sendmail(sender, receiver, message.encode('utf-8'))
             print(f'Email with {len(offers)} new offers to {receiver} has been sent!')  # noqa: E501
         except Exception as e:
             print(f'Unable to send email to {receiver}', e)
@@ -119,6 +114,17 @@ def main():
 
     smtp_server = connect_SMTP(host=SMTP_HOST, port=SMTP_PORT)
 
+    print('Please enter sender credentials below:')
+    SENDER = input('Enter email address\n>>')
+    SENDER_PASSWORD = getpass('Enter password\n>>')
+
+    try:
+        smtp_server.login(SENDER, SENDER_PASSWORD)
+    except smtplib.SMTPAuthenticationError:
+        print("Unable to sign in")
+    except Exception as e:
+        print(e)
+
     while 1:
         try:
             offers = get_offers()
@@ -133,7 +139,7 @@ def main():
                     )
 
             if new_offers:
-                send_offers(smtp_server, new_offers)
+                send_offers(smtp_server, SENDER, new_offers)
             else:
                 print(f'No new offers found... ({datetime.now()})')
 
