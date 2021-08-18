@@ -108,8 +108,6 @@ def send_offers(host, port, sender, offers, email, password):
             print(f'Unable to send email to {receiver}', e)
         else:
             print(f'Email with {len(offers)} new offers to {receiver} has been sent!')  # noqa: E501
-        finally:
-            smtp_server.close()
 
 
 def main():
