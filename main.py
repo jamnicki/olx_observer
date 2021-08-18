@@ -133,7 +133,7 @@ def main():
                     )
 
             if new_offers:
-                send_offers(smtp_server, offers)
+                send_offers(smtp_server, new_offers)
             else:
                 print(f'No new offers found... ({datetime.now()})')
 
@@ -142,8 +142,6 @@ def main():
             break
         except Exception as e:
             print(e)
-
-        break
 
 
 if __name__ == "__main__":
