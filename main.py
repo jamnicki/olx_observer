@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 import re
 import time
 import random
@@ -9,6 +11,7 @@ from datetime import datetime
 from urllib.parse import urljoin
 from bs4 import BeautifulSoup
 from getpass import getpass
+from multiprocessing import Process
 from settings import (
     BASE_URL, OFFERS_URL, LOCATION_TAG_CLASS, PRICE_TAG_CLASS, SMTP_HOST,
     DETAILS_TAG_CLASS, SMTP_PORT, RECEIVERS
@@ -94,9 +97,9 @@ def login_SMTP(smtp_server, email, password):
         print(f'Unable to sign in as {email}')
 
 
-def send_offers(host, port, sender, offers, email, password):
+def send_offers(host, port, sender, offers, password):
     smtp_server = connect_SMTP(host, port)
-    login_SMTP(smtp_server, email, password)
+    login_SMTP(smtp_server, sender, password)
     for receiver in RECEIVERS:
         message = f"From: {sender}\nTo: {receiver}\nSubject: New offers\n"
         for offer in offers:
@@ -108,6 +111,37 @@ def send_offers(host, port, sender, offers, email, password):
             print(f'Unable to send email to {receiver}', e)
         else:
             print(f'Email with {len(offers)} new offers to {receiver} has been sent!')  # noqa: E501
+
+
+def observe(db_conn, smtp_server, sender, password):
+    while 1:
+        try:
+            offers = get_offers()
+            new_offers = []
+            for offer in offers:
+                if not offer_exists(db_conn, offer):
+                    new_offers.append(offer)
+                    inset_values(db_conn, 'offers', (
+                        datetime.now(), offer.title, offer.location,
+                        offer.price, offer.rooms, offer.area, offer.link
+                        )
+                    )
+
+            if new_offers:
+                send_offers(
+                    SMTP_HOST, SMTP_PORT, sender, new_offers, password
+                )
+            else:
+                print(f'No new offers found... ({datetime.now()})')
+
+            time.sleep(random.randint(840, 960))  # sleep for 15min +-1min
+        except KeyboardInterrupt:
+            smtp_server.close()
+            return None
+        except Exception as e:
+            smtp_server.close()
+            print(e)
+            return None
 
 
 def main():
@@ -136,33 +170,11 @@ def main():
     else:
         print(f'\nLogged as {SENDER}\n')
 
-    while 1:
-        try:
-            offers = get_offers()
-            new_offers = []
-            for offer in offers:
-                if not offer_exists(db_conn, offer):
-                    new_offers.append(offer)
-                    inset_values(db_conn, 'offers', (
-                        datetime.now(), offer.title, offer.location,
-                        offer.price, offer.rooms, offer.area, offer.link
-                        )
-                    )
-
-            if new_offers:
-                send_offers(
-                    SMTP_HOST, SMTP_PORT, SENDER, new_offers, SENDER,
-                    SENDER_PASSWORD
-                )
-            else:
-                print(f'No new offers found... ({datetime.now()})')
-
-            time.sleep(random.randint(840, 960))  # sleep for 15min +-1min
-        except KeyboardInterrupt:
-            smtp_server.close()
-            break
-        except Exception as e:
-            print(e)
+    p = Process(
+        target=observe, args=(db_conn, smtp_server, SENDER, SENDER_PASSWORD)
+    )
+    p.start()
+    p.join()
 
 
 if __name__ == "__main__":
