@@ -124,6 +124,10 @@ def main():
         print("Unable to sign in")
     except Exception as e:
         print(e)
+    else:
+        print(f'\nLogged as {SENDER}\n')
+    finally:
+        del SENDER_PASSWORD
 
     while 1:
         try:
