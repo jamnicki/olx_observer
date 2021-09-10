@@ -9,7 +9,7 @@ DETAILS_TAG_CLASS = 'css-xlgkh5 es62z2j22'
 SMTP_HOST = 'smtp.gmail.com'
 SMTP_PORT = 587
 RECEIVERS = [
-    'herojedrus@gmail.com',
-    'mikolaj@kazmierczak.pl',
-    'kazmierczakz881@gmail.com'
+    'mail1@domain.com',
+    'mail2@domain.com',
+    'mail3@domain.com'
 ]
